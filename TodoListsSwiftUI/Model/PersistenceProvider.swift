@@ -9,30 +9,38 @@ import Foundation
 import CoreData
 
 final class PersistenceProvider {
-    private lazy var storeCoordinator: NSPersistentStoreCoordinator = {
-        let coordinator = NSPersistentStoreCoordinator(managedObjectModel: model)
-        let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("TodoListsSwiftUI.sqlite")
-        try! coordinator.addPersistentStore(ofType: NSSQLiteStoreType,
-                                            configurationName: nil,
-                                            at: url,
-                                            options: nil)
-        return coordinator
+    enum StoreType {
+        case inMemory, persisted
+    }
+    
+    static var managedObjectModel: NSManagedObjectModel = {
+        let bundle = Bundle(for: PersistenceProvider.self)
+        guard let url = bundle.url(forResource: "TodoListsSwiftUI", withExtension: "momd") else {
+            fatalError("Failed to locate momd file for TodoListsSwiftUI")
+        }
+        guard let model = NSManagedObjectModel(contentsOf: url) else {
+            fatalError("Failed to load momd file for TodoListsSwiftUI")
+        }
+        return model
     }()
     
-    private lazy var model: NSManagedObjectModel = {
-        let url = Bundle.main.url(forResource: "TodoListsSwiftUI", withExtension: "momd")!
-        let model = NSManagedObjectModel(contentsOf: url)
-        return model!
-    }()
-    
-    private(set) lazy var context: NSManagedObjectContext = {
-        let context = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
-        context.persistentStoreCoordinator = storeCoordinator
-        return context
-    }()
+    let persistentContainer: NSPersistentContainer
+    var context: NSManagedObjectContext { persistentContainer.viewContext }
     
     static let `default`: PersistenceProvider = PersistenceProvider()
-    private init() {}
+    init(storeType: StoreType = .persisted) {
+        persistentContainer = NSPersistentContainer(name: "TodoListsSwiftUI", managedObjectModel: Self.managedObjectModel)
+        
+        if storeType == .inMemory {
+            persistentContainer.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")
+        }
+        
+        persistentContainer.loadPersistentStores { (_, error) in
+            if let error = error {
+                fatalError("Failed loading persistent stores with error: \(error.localizedDescription)")
+            }
+        }
+    }
 }
 
 extension PersistenceProvider {
@@ -42,18 +50,20 @@ extension PersistenceProvider {
         return request
     }
     
-    func createList(with title: String) {
+    @discardableResult
+    func createList(with title: String) -> TodoList {
         let list = TodoList(context: context)
         list.title = title
         list.creationDate = Date()
         try? context.save()
+        return list
     }
     
     func delete(_ lists: [TodoList]) {
         for list in lists {
-            PersistenceProvider.default.context.delete(list)
+            context.delete(list)
         }
-        try? PersistenceProvider.default.context.save()
+        try? context.save()
     }
 }
 
@@ -68,12 +78,14 @@ extension PersistenceProvider {
         return request
     }
     
-    func createTodo(with title: String, in list: TodoList) {
+    @discardableResult
+    func createTodo(with title: String, in list: TodoList) -> Todo {
         let todo = Todo(context: context)
         todo.title = title
         todo.creationDate = Date()
         list.addToTodos(todo)
         try? context.save()
+        return todo
     }
     
     func toggle(_ todo: Todo) {

@@ -11,7 +11,6 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             TodoListsListView()
-                .environment(\.managedObjectContext, PersistenceProvider.default.context)
         }
     }
 }
