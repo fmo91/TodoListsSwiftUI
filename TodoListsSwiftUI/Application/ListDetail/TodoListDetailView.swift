@@ -30,7 +30,7 @@ struct TodoListDetailView: View {
                 }
             )
             TextInputView(
-                title: "Add a new list",
+                title: "Add a new item",
                 actionTitle: "Add",
                 onCreate: { todoText in
                     PersistenceProvider.default.createTodo(with: todoText, in: list)
