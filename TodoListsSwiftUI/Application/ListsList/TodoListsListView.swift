@@ -9,11 +9,6 @@ import SwiftUI
 
 struct TodoListsListView: View {
     @FetchRequest(fetchRequest: PersistenceProvider.default.allListsRequest) var allLists: FetchedResults<TodoList>
-    private let persistenceProvider: PersistenceProvider
-    
-    init(persistenceProvider: PersistenceProvider = .default) {
-        self.persistenceProvider = persistenceProvider
-    }
     
     var body: some View {
         VStack {
@@ -25,7 +20,7 @@ struct TodoListsListView: View {
                     }
                 }
                 .onDelete(perform: { indexSet in
-                    persistenceProvider.delete(allLists.get(indexSet))
+                    PersistenceProvider.default.delete(allLists.get(indexSet))
                 })
             }
             
@@ -33,7 +28,7 @@ struct TodoListsListView: View {
                 title: "Add a new list",
                 actionTitle: "Add",
                 onCreate: { listText in
-                    persistenceProvider.createList(with: listText)
+                    PersistenceProvider.default.createList(with: listText)
                 }
             )
         }
